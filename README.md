@@ -20,7 +20,7 @@ pip install -r requirements.txt
 
 ## Index
 
-- [Milling machine failure prediction](./src/milling_xgboost.py)
+- [Milling machine failure prediction](./milling_xgboost.py)
 
 ## Resources
 
