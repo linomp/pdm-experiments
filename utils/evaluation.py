@@ -9,6 +9,8 @@ from sklearn.model_selection import cross_validate
 
 def eval_classifier(clf, x_test, y_test, x_train, y_train, do_cross_validation=False, weight_train=None,
                     weight_test=None):
+    # TODO: this code is horrible, refactor it...
+
     # score = clf.score(x_test, y_test.ravel(), sample_weight=weight_test)
     y_pred = clf.predict(x_test)
 
