@@ -89,3 +89,5 @@ pip install -r requirements.txt
 - Explainable Artificial Intelligence for Predictive Maintenance Applications. By Stephan
   Matzka. ([Paper](https://github.com/linomp/pdm-experiments/files/12337616/matzka2020.pdf))
 - Handling Imbalanced Datasets in ML - codebasics. ([Video](https://www.youtube.com/watch?v=JnlM4yLFNuo))
+- SMOTE & ADASYN in
+  sklearn. ([Docs](https://imbalanced-learn.org/stable/over_sampling.html#from-random-over-sampling-to-smote-and-adasyn))
