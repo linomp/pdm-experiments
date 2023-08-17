@@ -1,11 +1,13 @@
+# %%
 import os
+from collections import Counter
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-import wittgenstein
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import RandomUnderSampler
 from sklearn.model_selection import train_test_split
-from sklearn.utils import compute_sample_weight
 from xgboost import XGBClassifier
 
 from utils.cleaning import visualize_missing_values, drop_cols_with_quality_threshold, get_snake_case_column_mapping
@@ -14,6 +16,7 @@ from utils.visualization import get_feature_boxplots
 
 sns.set_style('white', {'axes.spines.right': False, 'axes.spines.top': False})
 
+# %%
 # 1. Load and clean the data
 
 df_base = pd.read_csv("data/milling_synthetic_kaggle.csv")
@@ -40,6 +43,7 @@ print(f"Columns after cleaning: {df_base.columns}")
 target_name = 'failure_type'
 categorical_columns = ["type", "failure_type"]
 
+# %%
 # 2. Exploratory Data Analysis
 if not os.getenv('SKIP_EDA', False):
     # 2.1 Class (im)balance
@@ -63,68 +67,80 @@ if not os.getenv('SKIP_EDA', False):
     get_feature_boxplots(df_base, 'rotational_speed_rpm').show()
     get_feature_boxplots(df_base, 'torque_nm').show()
 
+# %%
 # 3. Data preparation (encode categorical features, split into train/test sets)
 df_base = df_base.dropna()
 
-# TODO: handle class imbalance problem. downsapling, oversampling, what else exists?
-# df_base = get_downsampled_df(df_base, target_name)
-# print(df_base[target_name].value_counts())
-
 # Specific column mappings: failure types and type of piece being worked (quality level)
-df_base[target_name].replace(
-    {
-        'No Failure': 0,
-        'Power Failure': 1,
-        'Tool Wear Failure': 2,
-        'Overstrain Failure': 3,
-        'Random Failures': 4,
-        'Heat Dissipation Failure': 5
-    }, inplace=True
-)
+class_mapping = {
+    'No Failure': 0,
+    'Power Failure': 1,
+    'Tool Wear Failure': 2,
+    'Overstrain Failure': 3,
+    'Random Failures': 4,
+    'Heat Dissipation Failure': 5
+}
+df_base[target_name].replace(class_mapping, inplace=True)
 df_base['type'].replace({'L': 0, 'M': 1, 'H': 2}, inplace=True)
 
-y = df_base[target_name]
 X = df_base.drop(columns=[target_name])
+y = df_base[target_name]
 
-# TODO: and the validation set?
-X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7, random_state=0)
 
-print('train: ', X_train.shape, y_train.shape)
-print('test: ', X_test.shape, y_test.shape)
-
+# %%
 # 4. Model Training & Evaluation
+def xgb_build_eval(_x_train, _y_train, _x_test, _y_test, do_cross_validation=False, show_confusion_matrix=False) -> str:
+    xgb_clf = XGBClassifier(booster='gbtree',
+                            tree_method='gpu_hist',
+                            sampling_method='gradient_based',
+                            eval_metric='aucpr',
+                            objective='multi:softmax',
+                            num_class=6)
+    xgb_clf.fit(_x_train, _y_train.ravel())
+    return eval_classifier(xgb_clf, _x_test, _y_test, _x_train, y_train, do_cross_validation=do_cross_validation,
+                           show_confusion_matrix=show_confusion_matrix, class_mapping=class_mapping)
 
-# 4.1 XGBoost
-weight_train = compute_sample_weight('balanced', y_train)
-weight_test = compute_sample_weight('balanced', y_test)
-xgb_clf = XGBClassifier(booster='gbtree',
-                        tree_method='gpu_hist',
-                        sampling_method='gradient_based',
-                        eval_metric='aucpr',
-                        objective='multi:softmax',
-                        num_class=6)
-xgb_clf.fit(X_train, y_train.ravel(), sample_weight=weight_train)
 
-eval_classifier(xgb_clf, X_test, y_test, X_train, y_train, do_cross_validation=False, weight_train=weight_train,
-                weight_test=weight_test)
+# TODO: Validation set?
+X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7, random_state=0, stratify=y)
 
-# 4.2 Wittgenstein
-ripper_clf = wittgenstein.RIPPER()
+print('\n\nRaw results - no class imbalance handling')
+print('Class counts:', Counter(y))
+print('train[raw]: ', X_train.shape, y_train.shape)
+print('test[raw]: ', X_test.shape, y_test.shape)
 
-# Wittgenstein is not for multiclass classification, so we need to drop the other classes.
-# For now we keep only the 'No Failure' and 'Power Failure' classes (by now mapped to 0 and 1)
-df_base = df_base[df_base[target_name].isin([0, 1])]
+raw_classifier_report = xgb_build_eval(X_train, y_train, X_test, y_test)
+print("XGBoost[raw] scores:\n", raw_classifier_report)
 
-ripper_clf.fit(df_base, class_feat=target_name, pos_class=0)
+# %%
+# 5. Improvements: handle class imbalance problem
 
-print(ripper_clf.out_model())
+# 5.1. Downsampling
 
-# Recompute train/test sets for binary classification
-y = df_base[target_name]
-X = df_base.drop(columns=[target_name])
-X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7, random_state=0)
+X_resampled, y_resampled = RandomUnderSampler(sampling_strategy='auto', random_state=0).fit_resample(X, y)
 
-eval_classifier(ripper_clf, X_test, y_test, X_train, y_train, do_cross_validation=False)
+X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, train_size=0.7, random_state=0,
+                                                    stratify=y_resampled)
 
-# TODO: how to handle undersampling and test set? (confusion matrix gets generated with very few samples)
-# TODO: test with wittgenstein, CatBoost and simpler models
+print('\n\nDownsampling results')
+print('Class counts:', Counter(y_resampled))
+print('train[downsampling]: ', X_train.shape, y_train.shape)
+print('test[downsampling]: ', X_test.shape, y_test.shape)
+
+raw_classifier_report = xgb_build_eval(X_train, y_train, X_test, y_test)
+print("XGBoost[downsampling] scores:\n", raw_classifier_report)
+
+# 5.2. SMOTE
+
+X_resampled, y_resampled = SMOTE(sampling_strategy='auto', random_state=0).fit_resample(X, y)
+
+X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, train_size=0.7, random_state=0,
+                                                    stratify=y_resampled)
+
+print('\n\nSMOTE results')
+print('Class counts:', Counter(y_resampled))
+print('train[SMOTE]: ', X_train.shape, y_train.shape)
+print('test[SMOTE]: ', X_test.shape, y_test.shape)
+
+raw_classifier_report = xgb_build_eval(X_train, y_train, X_test, y_test)
+print("XGBoost[SMOTE] scores:\n", raw_classifier_report)
