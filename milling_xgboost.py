@@ -1,18 +1,25 @@
 # %%
 import os
+import pickle
 from collections import Counter
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import SMOTE, ADASYN
 from imblearn.under_sampling import RandomUnderSampler
 from sklearn.model_selection import train_test_split
-from xgboost import XGBClassifier
 
 from utils.cleaning import visualize_missing_values, drop_cols_with_quality_threshold, get_snake_case_column_mapping
 from utils.evaluation import eval_classifier
+from utils.training import xgb_build_eval, xgb_build
 from utils.visualization import get_feature_boxplots
+
+MODELS_DIR = './models'
+RANDOM_STATE = 0
+
+if not os.path.exists(MODELS_DIR):
+    os.makedirs(MODELS_DIR)
 
 sns.set_style('white', {'axes.spines.right': False, 'axes.spines.top': False})
 
@@ -86,40 +93,30 @@ df_base['type'].replace({'L': 0, 'M': 1, 'H': 2}, inplace=True)
 X = df_base.drop(columns=[target_name])
 y = df_base[target_name]
 
-
 # %%
 # 4. Model Training & Evaluation
-def xgb_build_eval(_x_train, _y_train, _x_test, _y_test, do_cross_validation=False, show_confusion_matrix=False) -> str:
-    xgb_clf = XGBClassifier(booster='gbtree',
-                            tree_method='gpu_hist',
-                            sampling_method='gradient_based',
-                            eval_metric='aucpr',
-                            objective='multi:softmax',
-                            num_class=6)
-    xgb_clf.fit(_x_train, _y_train.ravel())
-    return eval_classifier(xgb_clf, _x_test, _y_test, _x_train, y_train, do_cross_validation=do_cross_validation,
-                           show_confusion_matrix=show_confusion_matrix, class_mapping=class_mapping)
 
+X, X_validate, y, y_validate = train_test_split(X, y, train_size=0.8, random_state=RANDOM_STATE, stratify=y)
 
-# TODO: Validation set?
-X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7, random_state=0, stratify=y)
+X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7, random_state=RANDOM_STATE, stratify=y)
 
 print('\n\nRaw results - no class imbalance handling')
 print('Class counts:', Counter(y))
 print('train[raw]: ', X_train.shape, y_train.shape)
 print('test[raw]: ', X_test.shape, y_test.shape)
+print('validate[raw]: ', X_validate.shape, y_validate.shape)
 
-raw_classifier_report = xgb_build_eval(X_train, y_train, X_test, y_test)
-print("XGBoost[raw] scores:\n", raw_classifier_report)
+clf, report = xgb_build_eval(X_train, y_train, X_test, y_test)
+print("XGBoost[raw] scores:\n", report)
 
 # %%
 # 5. Improvements: handle class imbalance problem
 
 # 5.1. Downsampling
 
-X_resampled, y_resampled = RandomUnderSampler(sampling_strategy='auto', random_state=0).fit_resample(X, y)
+X_resampled, y_resampled = RandomUnderSampler(random_state=RANDOM_STATE).fit_resample(X, y)
 
-X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, train_size=0.7, random_state=0,
+X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, train_size=0.7, random_state=RANDOM_STATE,
                                                     stratify=y_resampled)
 
 print('\n\nDownsampling results')
@@ -127,14 +124,16 @@ print('Class counts:', Counter(y_resampled))
 print('train[downsampling]: ', X_train.shape, y_train.shape)
 print('test[downsampling]: ', X_test.shape, y_test.shape)
 
-raw_classifier_report = xgb_build_eval(X_train, y_train, X_test, y_test)
-print("XGBoost[downsampling] scores:\n", raw_classifier_report)
+clf_under = xgb_build(X_train, y_train, X_test, y_test)
+print("XGBoost[downsampling] validation set scores:\n",
+      eval_classifier(clf_under, X_validate, y_validate, class_mapping=class_mapping, show_confusion_matrix=True,
+                      fig_title='Downsampling'))
 
 # 5.2. SMOTE
 
-X_resampled, y_resampled = SMOTE(sampling_strategy='auto', random_state=0).fit_resample(X, y)
+X_resampled, y_resampled = SMOTE(random_state=RANDOM_STATE).fit_resample(X, y)
 
-X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, train_size=0.7, random_state=0,
+X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, train_size=0.7, random_state=RANDOM_STATE,
                                                     stratify=y_resampled)
 
 print('\n\nSMOTE results')
@@ -142,5 +141,30 @@ print('Class counts:', Counter(y_resampled))
 print('train[SMOTE]: ', X_train.shape, y_train.shape)
 print('test[SMOTE]: ', X_test.shape, y_test.shape)
 
-raw_classifier_report = xgb_build_eval(X_train, y_train, X_test, y_test)
-print("XGBoost[SMOTE] scores:\n", raw_classifier_report)
+clf_smote = xgb_build(X_train, y_train, X_test, y_test)
+print("XGBoost[SMOTE] validation set scores:\n",
+      eval_classifier(clf_smote, X_validate, y_validate, class_mapping=class_mapping, show_confusion_matrix=True,
+                      fig_title='SMOTE'))
+
+# 5.3. ADASYN
+
+X_resampled, y_resampled = ADASYN(random_state=RANDOM_STATE).fit_resample(X, y)
+
+X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, train_size=0.7, random_state=RANDOM_STATE,
+                                                    stratify=y_resampled)
+
+print('\n\nADASYN results')
+print('Class counts:', Counter(y_resampled))
+print('train[ADASYN]: ', X_train.shape, y_train.shape)
+print('test[ADASYN]: ', X_test.shape, y_test.shape)
+
+clf_adasyn = xgb_build(X_train, y_train, X_test, y_test)
+print("XGBoost[ADASYN] validation set scores:\n",
+      eval_classifier(clf_adasyn, X_validate, y_validate, class_mapping=class_mapping, show_confusion_matrix=True,
+                      fig_title='ADASYN'))
+
+# %%
+# 6. Save the best model
+pickle.dump(clf_adasyn, open(f"{MODELS_DIR}/xgboost_milling_multiclass.pkl", "wb"))
+
+plt.show(block=True)

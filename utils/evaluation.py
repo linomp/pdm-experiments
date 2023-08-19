@@ -7,8 +7,9 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.model_selection import cross_validate
 
 
-def eval_classifier(clf, x_test, y_test, x_train, y_train, do_cross_validation=False,
-                    show_confusion_matrix=False, class_mapping: dict | None = None) -> str:
+def eval_classifier(clf, x_test, y_test, x_train=None, y_train=None, do_cross_validation=False,
+                    show_confusion_matrix=False, class_mapping: dict | None = None,
+                    fig_title: str | None = None) -> str:
     # Binary Classification Report
     y_pred = clf.predict(x_test)
     target_names = None
@@ -24,11 +25,12 @@ def eval_classifier(clf, x_test, y_test, x_train, y_train, do_cross_validation=F
         df_cm.index.name = 'Actual'
         df_cm.columns.name = 'Predicted'
         plt.figure(figsize=(8, 5))
+        plt.title(fig_title)
         sns.set(font_scale=1.1)  # for label size
         sns.heatmap(df_cm, cbar=True, cmap="inferno", annot=True, fmt='.0f')
-        plt.show()
+        plt.show(block=False)
 
-    if do_cross_validation:
+    if do_cross_validation and (x_train is not None) and (y_train is not None):
         scores = cross_validate(clf, x_train, y_train, cv=10, scoring="f1_weighted")
         scores_df = pd.DataFrame(scores)
         px.bar(x=scores_df.index, y=scores_df.test_score, width=800).show()

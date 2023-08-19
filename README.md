@@ -4,69 +4,8 @@ Scripts to experiment with predictive maintenance & related methods.
 
 ## Scripts index
 
-- [Milling machine failure classification - XGBoost](./milling_xgboost.py)
-  <details>
-  <summary>Results</summary>
-
-      Raw results - no class imbalance handling
-
-      Class counts: Counter({0: 9652, 5: 112, 1: 95, 3: 78, 2: 45, 4: 18})
-      train[raw]:  (7000, 6) (7000,)
-      test[raw]:  (3000, 6) (3000,)
-
-      XGBoost[raw] scores:
-                            precision   recall  f1-score  support
-              No Failure       0.99      1.00      0.99      2896
-           Power Failure       0.68      0.75      0.71        28
-       Tool Wear Failure       0.00      0.00      0.00        14
-      Overstrain Failure       0.86      0.78      0.82        23
-         Random Failures       0.00      0.00      0.00         5
-      Heat Dissipation Failure 1.00      1.00      1.00        34
-
-                accuracy                           0.99      3000
-               macro avg       0.59      0.59      0.59      3000
-            weighted avg       0.98      0.99      0.98      3000
-
-
-      Downsampling results
-
-      Class counts: Counter({0: 18, 1: 18, 2: 18, 3: 18, 4: 18, 5: 18})
-      train[downsampling]:  (75, 6) (75,)
-      test[downsampling]:  (33, 6) (33,)
-
-      XGBoost[downsampling] scores:
-                          precision     recall   f1-score   support
-              No Failure       0.43      0.50      0.46         6
-           Power Failure       0.40      0.40      0.40         5
-       Tool Wear Failure       1.00      1.00      1.00         5
-      Overstrain Failure       0.67      0.67      0.67         6
-         Random Failures       0.50      0.67      0.57         6
-      Heat Dissipation Failure 1.00      0.40      0.57         5
-
-                accuracy                           0.61        33
-               macro avg       0.67      0.61      0.61        33
-            weighted avg       0.65      0.61      0.61        33
-
-      SMOTE results
-
-      Class counts: Counter({0: 9652, 1: 9652, 2: 9652, 3: 9652, 4: 9652, 5: 9652})
-      train[SMOTE]:  (40538, 6) (40538,)
-      test[SMOTE]:  (17374, 6) (17374,)
-
-      XGBoost[SMOTE] scores:
-                          precision    recall   f1-score  support
-              No Failure       1.00      0.96      0.98      2896
-           Power Failure       1.00      1.00      1.00      2896
-       Tool Wear Failure       0.98      1.00      0.99      2895
-      Overstrain Failure       1.00      1.00      1.00      2896
-         Random Failures       0.99      1.00      0.99      2896
-      Heat Dissipation Failure 1.00      1.00      1.00      2895
-
-                accuracy                           0.99     17374
-               macro avg       0.99      0.99      0.99     17374
-            weighted avg       0.99      0.99      0.99     17374
-
-  </details>
+- [Milling machine failure classification - XGBoost & class imbalance handling](./milling_xgboost.py)
+- [Milling machine failure classification - Tree methods](./milling_trees.py)
 
 ## Setup
 
