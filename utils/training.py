@@ -9,7 +9,7 @@ def xgb_build(_x_train, _y_train, _x_test, _y_test) -> XGBClassifier:
     # TODO: num_class is currently hardcoded
     xgb_clf = XGBClassifier(
         booster='gbtree',
-        # tree_method='gpu_hist',
+        tree_method='gpu_hist',
         sampling_method='gradient_based',
         eval_metric='aucpr',
         objective='multi:softmax',

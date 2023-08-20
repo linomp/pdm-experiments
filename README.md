@@ -4,8 +4,8 @@ Scripts to experiment with predictive maintenance & related methods.
 
 ## Scripts index
 
-- [Milling machine failure classification - XGBoost & class imbalance handling](./milling_xgboost.py)
-- [Milling machine failure classification - Tree methods](./milling_trees.py)
+- [Milling machine failure classification - XGBoost & class imbalance handling](./experiments/milling_xgboost.py)
+- [Milling machine failure classification - Tree methods](./experiments/milling_trees.py)
 
 ## Setup
 
