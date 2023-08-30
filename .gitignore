@@ -2,3 +2,4 @@
 venv
 reference
 .pytest_cache
+data/large/*

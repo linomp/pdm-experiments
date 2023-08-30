@@ -4,8 +4,8 @@ Scripts to experiment with predictive maintenance & related methods.
 
 ## Scripts index
 
-- [Milling machine failure classification - XGBoost & class imbalance handling](./experiments/milling_xgboost.py)
-- [Milling machine failure classification - Tree methods](./experiments/milling_trees.py)
+- [Milling machine failure classification - XGBoost & class imbalance handling](./experiments/failure_classification/milling_machines_class_balancing.py)
+- [Milling machine failure classification - Tree methods](./experiments/failure_classification/milling_machines_classifier_comparison.py)
 
 ## Setup
 
@@ -30,3 +30,9 @@ pip install -r requirements.txt
 - Handling Imbalanced Datasets in ML - codebasics. ([Video](https://www.youtube.com/watch?v=JnlM4yLFNuo))
 - SMOTE & ADASYN in
   sklearn. ([Docs](https://imbalanced-learn.org/stable/over_sampling.html#from-random-over-sampling-to-smote-and-adasyn))
+
+### Datasets
+
+- [CNC MIll Tool Wear](https://www.kaggle.com/datasets/shasun/tool-wear-detection-in-cnc-mill)
+- [Tool wear dataset of NUAA_Ideahouse](https://ieee-dataport.org/open-access/tool-wear-dataset-nuaaideahouse)
+- [AI4I 2020 Predictive Maintenance Dataset](https://archive.ics.uci.edu/dataset/601/ai4i+2020+predictive+maintenance+dataset)
